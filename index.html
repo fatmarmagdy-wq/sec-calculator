@@ -66,6 +66,21 @@
     .val-mapped { color: var(--color-success); }
     .val-unmapped { color: var(--color-error); font-weight: 600; }
 
+    /* Fix panel inside Data Preview */
+    .fix-section { background: #fff5f5; border: 1px solid #fecaca; border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+    .fix-section-title { font-size: 13px; font-weight: 700; color: var(--color-error); display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .fix-field-group { margin-bottom: 12px; }
+    .fix-field-group h5 { font-size: 12px; font-weight: 600; color: var(--color-muted); text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+    .fix-row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #fee2e2; }
+    .fix-row:last-child { border-bottom: none; }
+    .fix-val-text { flex: 1; font-size: 12px; font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text); }
+    .fix-row-count { font-size: 11px; color: var(--color-error); font-weight: 600; min-width: 40px; text-align: center; background: #fee2e2; border-radius: 10px; padding: 1px 6px; }
+    .fix-code-input { width: 54px; padding: 4px 6px; border: 1px solid var(--color-border); border-radius: 5px; font-size: 12px; text-align: center; }
+    .fix-save-btn { padding: 4px 10px; font-size: 11px; font-weight: 700; background: var(--color-primary); color: #fff; border: none; border-radius: 5px; white-space: nowrap; }
+    .fix-save-btn:hover { background: #1d4ed8; }
+    .fix-saved-badge { font-size: 11px; color: var(--color-success); font-weight: 700; display: none; }
+    .all-fixed-msg { font-size: 13px; color: var(--color-success); font-weight: 600; text-align: center; padding: 8px; display: none; }
+
     /* Encoding Maps tab */
     .map-section { margin-bottom: 20px; }
     .map-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text);
@@ -771,6 +786,13 @@ function renderResults() {
   renderSummaryTable(stats); renderChart(stats); renderWarnings(); renderUnknownValues();
   setPanel('panel-results', 'active');
   document.getElementById('panel-results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  // Auto-open side panel and switch to Data Preview so user sees what needs fixing
+  showSidePanel();
+  document.querySelectorAll('.side-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.side-tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.side-tab[data-tab="tab-preview"]').classList.add('active');
+  document.getElementById('tab-preview').classList.add('active');
+  renderDataPreview();
 }
 
 function renderSummaryTable(stats) {
@@ -965,42 +987,148 @@ function hideSidePanel() { document.getElementById('side-panel').classList.remov
 /* ==========================================
    SIDE PANEL – Data Preview Tab
    ========================================== */
-function renderDataPreview() {
-  const statsEl = document.getElementById('data-stats');
-  const sumEl = document.getElementById('col-summaries');
-  const totalRows = AppState.rawRows.length;
+const MAP_KEY_FOR_FIELD = {
+  education: 'EDU_MAP', employment: 'EMPLOYMENT_MAP',
+  occupation: 'OCCUPATION_MAP', income: 'INCOME_MAP', household: 'HOUSEHOLD_MAP'
+};
 
-  if (!totalRows) { statsEl.innerHTML = ''; sumEl.innerHTML = '<p style="color:var(--color-muted);font-size:13px">Upload a file to see data preview.</p>'; return; }
-
-  // Count how many rows have complete data for the 3 main variables
-  let complete = 0, missing = 0;
+function collectUnmappedWithCounts() {
+  // Returns { field: [ {rawVal, count}, ... ] } for only unmapped values
+  const result = {};
+  const fieldsToCheck = ['education', 'employment', 'occupation', 'income', 'household'];
   const m = AppState.mapping;
 
-  // If results exist, use those stats
+  fieldsToCheck.forEach(field => {
+    const col = m[field];
+    if (!col) return;
+    const map = MAPS[MAP_KEY_FOR_FIELD[field]];
+    const freq = {};
+    AppState.rawRows.forEach(row => {
+      const v = String(row[col]||'').trim();
+      if (!v) return;
+      if (!(v.toLowerCase() in map)) freq[v] = (freq[v]||0) + 1;
+    });
+    const entries = Object.entries(freq).sort((a,b) => b[1]-a[1]);
+    if (entries.length) result[field] = entries.map(([rawVal, count]) => ({ rawVal, count }));
+  });
+  return result;
+}
+
+function renderFixSection(container) {
+  const unmapped = collectUnmappedWithCounts();
+  const fields = Object.keys(unmapped);
+
+  if (!fields.length) {
+    container.innerHTML = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px;text-align:center;font-size:13px;color:var(--color-success);font-weight:600;margin-bottom:16px">\u2713 All values are mapped! No excluded rows.</div>';
+    return;
+  }
+
+  const totalUnmappedRows = fields.reduce((s, f) => s + unmapped[f].reduce((ss, e) => ss + e.count, 0), 0);
+
+  let html = '<div class="fix-section">';
+  html += '<div class="fix-section-title">\u26A0 ' + totalUnmappedRows + ' rows excluded — assign codes below to fix</div>';
+
+  fields.forEach(field => {
+    const entries = unmapped[field];
+    const mapKey = MAP_KEY_FOR_FIELD[field];
+    html += '<div class="fix-field-group" id="fix-group-' + field + '">';
+    html += '<h5>' + FIELD_META[field].label + '</h5>';
+    entries.forEach(({ rawVal, count }) => {
+      const safeId = 'fix_' + field + '_' + rawVal.replace(/[^a-z0-9]/gi, '_');
+      html += '<div class="fix-row" id="row_' + safeId + '">' +
+        '<span class="fix-val-text" title="' + escHtml(rawVal) + '">' + escHtml(rawVal) + '</span>' +
+        '<span class="fix-row-count">' + count + ' rows</span>' +
+        '<input type="number" class="fix-code-input" id="inp_' + safeId + '" min="0" max="99" placeholder="code">' +
+        '<button class="fix-save-btn" data-field="' + field + '" data-raw="' + escHtml(rawVal) + '" data-mapkey="' + mapKey + '" data-id="' + safeId + '">Save</button>' +
+        '<span class="fix-saved-badge" id="saved_' + safeId + '">\u2713 Saved</span>' +
+        '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Wire up save buttons
+  container.querySelectorAll('.fix-save-btn').forEach(btn => {
+    const { field, raw: rawVal, mapkey: mapKey, id: safeId } = btn.dataset;
+    const input = document.getElementById('inp_' + safeId);
+    const savedBadge = document.getElementById('saved_' + safeId);
+    const row = document.getElementById('row_' + safeId);
+
+    function doSave() {
+      const code = parseInt(input.value);
+      if (isNaN(code) || input.value.trim() === '') { input.style.borderColor='var(--color-error)'; input.focus(); return; }
+      input.style.borderColor = '';
+      MAPS[mapKey][rawVal.toLowerCase()] = code;
+      saveMapsToStorage();
+      // Show saved indicator, fade row
+      savedBadge.style.display = 'inline';
+      btn.style.display = 'none';
+      input.disabled = true;
+      row.style.opacity = '0.5';
+      // Re-process & re-render
+      processAll(); renderResults(); renderDataPreview(); renderMapEditor();
+    }
+
+    btn.addEventListener('click', doSave);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') doSave(); });
+  });
+}
+
+function renderDataPreview() {
+  const statsEl = document.getElementById('data-stats');
+  const sumEl   = document.getElementById('col-summaries');
+  const totalRows = AppState.rawRows.length;
+
+  if (!totalRows) {
+    statsEl.innerHTML = '';
+    sumEl.innerHTML = '<p style="color:var(--color-muted);font-size:13px">Upload a file to see data preview.</p>';
+    return;
+  }
+
+  // ── Stats bar ──────────────────────────────
+  let complete = 0, missing = 0;
   if (AppState.results.length) {
     complete = AppState.results.filter(r => r.SEC_designation != null).length;
-    missing = totalRows - complete;
+    missing  = totalRows - complete;
   }
 
   statsEl.innerHTML =
     '<div class="stat-card"><div class="stat-num">'+totalRows.toLocaleString()+'</div><div class="stat-label">Total Rows</div></div>' +
     '<div class="stat-card"><div class="stat-num">'+AppState.headers.length+'</div><div class="stat-label">Columns</div></div>' +
-    (AppState.results.length ? '<div class="stat-card"><div class="stat-num" style="color:var(--color-success)">'+complete.toLocaleString()+'</div><div class="stat-label">Complete</div></div>' +
-    '<div class="stat-card"><div class="stat-num" style="color:'+(missing>0?'var(--color-error)':'var(--color-success)')+'">'+missing+'</div><div class="stat-label">Missing/Excluded</div></div>' : '');
+    (AppState.results.length
+      ? '<div class="stat-card"><div class="stat-num" style="color:var(--color-success)">'+complete.toLocaleString()+'</div><div class="stat-label">Valid</div></div>' +
+        '<div class="stat-card"><div class="stat-num" style="color:'+(missing>0?'var(--color-error)':'var(--color-success)')+'">'+missing+'</div><div class="stat-label">Excluded</div></div>'
+      : '');
 
-  // Column-level summaries
+  // ── Fix Section (unmapped values with code inputs) ──
   sumEl.innerHTML = '';
+  const fixDiv = document.createElement('div');
+  sumEl.appendChild(fixDiv);
+  if (AppState.results.length || AppState.encodedRows.length) {
+    renderFixSection(fixDiv);
+  }
+
+  // ── Column distribution summaries ──────────
   const fieldsToShow = ['education','employment','occupation','income','household'];
-  const mapForField = {
+  const mapForField  = {
     education: MAPS.EDU_MAP, employment: MAPS.EMPLOYMENT_MAP,
     occupation: MAPS.OCCUPATION_MAP, income: MAPS.INCOME_MAP, household: MAPS.HOUSEHOLD_MAP
   };
 
+  const distDiv = document.createElement('div');
+  distDiv.style.marginTop = '8px';
+  sumEl.appendChild(distDiv);
+
+  // Section header
+  distDiv.innerHTML = '<p style="font-size:12px;font-weight:700;color:var(--color-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Value Distributions</p>';
+
   fieldsToShow.forEach(field => {
     const col = AppState.mapping[field];
     if (!col) return;
+    const map = mapForField[field];
 
-    // Count value frequencies
     const freq = {};
     let emptyCount = 0;
     AppState.rawRows.forEach(row => {
@@ -1009,24 +1137,16 @@ function renderDataPreview() {
       freq[v] = (freq[v]||0) + 1;
     });
 
-    // Sort by frequency
-    const sorted = Object.entries(freq).sort((a,b) => b[1] - a[1]);
-    const map = mapForField[field];
-    const unmappedCount = sorted.filter(([v]) => !(v.toLowerCase() in map)).reduce((s,[,c]) => s+c, 0);
-    const mappedCount = totalRows - emptyCount - unmappedCount;
+    const sorted = Object.entries(freq).sort((a,b) => b[1]-a[1]);
+    const unmappedRows = sorted.filter(([v]) => !(v.toLowerCase() in map)).reduce((s,[,c]) => s+c, 0);
 
-    // Badge
     let badge;
-    if (emptyCount === 0 && unmappedCount === 0) badge = '<span class="badge badge-ok">\u2713 All mapped</span>';
-    else if (unmappedCount > 0) badge = '<span class="badge badge-err">' + unmappedCount + ' unmapped</span>';
-    else if (emptyCount > 0) badge = '<span class="badge badge-warn">' + emptyCount + ' empty</span>';
+    if (emptyCount === 0 && unmappedRows === 0) badge = '<span class="badge badge-ok">\u2713 All mapped</span>';
+    else if (unmappedRows > 0) badge = '<span class="badge badge-err">'+unmappedRows+' unmapped</span>';
+    else badge = '<span class="badge badge-warn">'+emptyCount+' empty</span>';
 
-    let html = '<div class="col-summary"><h4>' + FIELD_META[field].label + ' ' + (badge||'') + '</h4>';
-
-    if (emptyCount > 0) {
-      html += '<div style="font-size:11px;color:var(--color-warning);margin-bottom:4px">' + emptyCount + ' empty cell' + (emptyCount>1?'s':'') + '</div>';
-    }
-
+    let html = '<div class="col-summary"><h4>'+FIELD_META[field].label+' '+badge+'</h4>';
+    if (emptyCount > 0) html += '<div style="font-size:11px;color:var(--color-warning);margin-bottom:4px">'+emptyCount+' empty cell'+(emptyCount>1?'s':'')+'</div>';
     html += '<div class="val-dist">';
     const maxCount = sorted.length ? sorted[0][1] : 1;
     sorted.forEach(([val, count]) => {
@@ -1035,13 +1155,13 @@ function renderDataPreview() {
       const barW = (count/maxCount*100).toFixed(0);
       const color = isMapped ? 'var(--color-success)' : 'var(--color-error)';
       html += '<div class="val-dist-row">' +
-        '<span class="val-text ' + (isMapped?'val-mapped':'val-unmapped') + '" title="'+val+'">' + (isMapped?'\u2713':'\u2717') + ' ' + val + '</span>' +
-        '<span class="val-count">' + count + ' (' + pct + '%)</span>' +
+        '<span class="val-text '+(isMapped?'val-mapped':'val-unmapped')+'" title="'+escHtml(val)+'">'+(isMapped?'\u2713':'\u2717')+' '+escHtml(val)+'</span>' +
+        '<span class="val-count">'+count+' ('+pct+'%)</span>' +
         '<div class="val-bar-wrap"><div class="val-bar" style="width:'+barW+'%;background:'+color+'"></div></div>' +
         '</div>';
     });
     html += '</div></div>';
-    sumEl.innerHTML += html;
+    distDiv.innerHTML += html;
   });
 }
 
