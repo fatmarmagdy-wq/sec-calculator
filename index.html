@@ -7,183 +7,209 @@
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
   <style>
-    /* ===== Custom Properties ===== */
     :root {
-      --color-primary:   #2563eb;
-      --color-success:   #16a34a;
-      --color-warning:   #d97706;
-      --color-error:     #dc2626;
-      --color-bg:        #f8fafc;
-      --color-card:      #ffffff;
-      --color-border:    #e2e8f0;
-      --color-text:      #1e293b;
-      --color-muted:     #64748b;
-      --color-ab:        #2563eb;
-      --color-c1:        #16a34a;
-      --color-c2:        #d97706;
-      --color-de:        #dc2626;
-      --radius:          10px;
-      --shadow:          0 1px 3px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.05);
+      --color-primary: #2563eb; --color-success: #16a34a; --color-warning: #d97706;
+      --color-error: #dc2626; --color-bg: #f8fafc; --color-card: #ffffff;
+      --color-border: #e2e8f0; --color-text: #1e293b; --color-muted: #64748b;
+      --color-ab: #2563eb; --color-c1: #16a34a; --color-c2: #d97706; --color-de: #dc2626;
+      --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,.08), 0 2px 8px rgba(0,0,0,.05);
     }
-
-    /* ===== Reset ===== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
            background: var(--color-bg); color: var(--color-text); font-size: 15px; line-height: 1.5; }
     input, select, button { font-family: inherit; font-size: inherit; }
     button { cursor: pointer; }
 
-    /* ===== Layout ===== */
-    header {
-      background: var(--color-primary);
-      color: #fff;
-      padding: 18px 32px;
-      display: flex; align-items: center; gap: 14px;
-    }
+    /* Layout — two-column: main + side panel */
+    header { background: var(--color-primary); color: #fff; padding: 18px 32px; display: flex; align-items: center; gap: 14px; }
     header .logo { font-size: 22px; }
     header h1 { font-size: 20px; font-weight: 700; }
-    header p  { font-size: 13px; opacity: .85; margin-top: 2px; }
+    header p { font-size: 13px; opacity: .85; margin-top: 2px; }
 
-    .container { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; display: flex; flex-direction: column; gap: 20px; }
+    .app-layout { display: flex; gap: 20px; max-width: 1400px; margin: 0 auto; padding: 28px 20px 60px; }
+    .main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 
-    /* ===== Panel cards ===== */
-    .panel {
-      background: var(--color-card);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 24px 28px;
-      transition: opacity .25s;
+    /* Side Panel */
+    .side-panel {
+      width: 420px; flex-shrink: 0; position: sticky; top: 20px; max-height: calc(100vh - 40px);
+      overflow-y: auto; background: var(--color-card); border: 1px solid var(--color-border);
+      border-radius: var(--radius); box-shadow: var(--shadow); display: none;
     }
+    .side-panel.visible { display: block; }
+    .side-panel-header { padding: 16px 20px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; }
+    .side-panel-header h3 { font-size: 15px; font-weight: 700; }
+    .side-tabs { display: flex; border-bottom: 1px solid var(--color-border); }
+    .side-tab { flex: 1; padding: 10px 12px; font-size: 13px; font-weight: 600; text-align: center;
+                border: none; background: none; color: var(--color-muted); border-bottom: 2px solid transparent; }
+    .side-tab.active { color: var(--color-primary); border-bottom-color: var(--color-primary); }
+    .side-tab:hover { background: var(--color-bg); }
+    .side-tab-content { display: none; padding: 16px 20px; }
+    .side-tab-content.active { display: block; }
+
+    /* Data Preview tab */
+    .data-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+    .stat-card { background: var(--color-bg); border-radius: 8px; padding: 12px; text-align: center; }
+    .stat-card .stat-num { font-size: 22px; font-weight: 700; color: var(--color-primary); }
+    .stat-card .stat-label { font-size: 11px; color: var(--color-muted); text-transform: uppercase; letter-spacing: .5px; }
+    .col-summary { margin-bottom: 14px; }
+    .col-summary h4 { font-size: 13px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .col-summary .badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+    .badge-ok { background: #dcfce7; color: #166534; }
+    .badge-warn { background: #fef3c7; color: #92400e; }
+    .badge-err { background: #fee2e2; color: #991b1b; }
+    .val-dist { font-size: 12px; }
+    .val-dist-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+    .val-dist-row .val-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .val-dist-row .val-count { color: var(--color-muted); font-size: 11px; min-width: 40px; text-align: right; }
+    .val-dist-row .val-bar-wrap { width: 60px; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
+    .val-dist-row .val-bar { height: 100%; border-radius: 3px; }
+    .val-mapped { color: var(--color-success); }
+    .val-unmapped { color: var(--color-error); font-weight: 600; }
+
+    /* Encoding Maps tab */
+    .map-section { margin-bottom: 20px; }
+    .map-section h4 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--color-text);
+                      display: flex; align-items: center; justify-content: space-between; }
+    .map-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .map-table th { text-align: left; padding: 5px 8px; background: var(--color-bg); font-weight: 600;
+                    color: var(--color-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+    .map-table td { padding: 4px 8px; border-bottom: 1px solid var(--color-border); }
+    .map-table input[type="text"] { width: 100%; padding: 3px 6px; border: 1px solid var(--color-border);
+                                     border-radius: 4px; font-size: 12px; }
+    .map-table input[type="number"] { width: 50px; padding: 3px 6px; border: 1px solid var(--color-border);
+                                       border-radius: 4px; font-size: 12px; text-align: center; }
+    .map-table .btn-del { background: none; border: none; color: var(--color-error); font-size: 14px; padding: 2px 6px; }
+    .map-table .btn-del:hover { background: #fee2e2; border-radius: 4px; }
+    .btn-add-row { font-size: 12px; padding: 4px 10px; margin-top: 4px; background: var(--color-bg);
+                   border: 1px dashed var(--color-border); border-radius: 5px; color: var(--color-muted); }
+    .btn-add-row:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .map-actions { display: flex; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+
+    @media (max-width: 900px) {
+      .app-layout { flex-direction: column; }
+      .side-panel { width: 100%; position: static; max-height: none; }
+    }
+
+    /* Panel cards */
+    .panel { background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius);
+             box-shadow: var(--shadow); padding: 24px 28px; transition: opacity .25s; }
     .panel[data-state="inactive"] { opacity: .45; pointer-events: none; }
-    .panel[data-state="complete"]  { border-left: 4px solid var(--color-success); }
-
+    .panel[data-state="complete"] { border-left: 4px solid var(--color-success); }
     .panel-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
-    .step-badge {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--color-primary); color: #fff;
-      font-size: 13px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
+    .step-badge { width: 28px; height: 28px; border-radius: 50%; background: var(--color-primary); color: #fff;
+                  font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .panel[data-state="complete"] .step-badge { background: var(--color-success); }
     .panel-header h2 { font-size: 16px; font-weight: 600; }
 
-    /* ===== Step 1 – Upload ===== */
-    .drop-zone {
-      border: 2px dashed var(--color-border);
-      border-radius: var(--radius);
-      padding: 36px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-    }
-    .drop-zone:hover, .drop-zone.drag-over {
-      border-color: var(--color-primary);
-      background: #eff6ff;
-    }
+    /* Step 1 */
+    .drop-zone { border: 2px dashed var(--color-border); border-radius: var(--radius); padding: 36px 20px;
+                 text-align: center; cursor: pointer; transition: border-color .2s, background .2s; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--color-primary); background: #eff6ff; }
     .drop-zone .icon { font-size: 36px; margin-bottom: 8px; }
-    .drop-zone p  { color: var(--color-muted); font-size: 14px; }
+    .drop-zone p { color: var(--color-muted); font-size: 14px; }
     .drop-zone strong { color: var(--color-primary); }
     #file-input { display: none; }
     #file-info { margin-top: 14px; padding: 10px 14px; background: #f0fdf4; border: 1px solid #bbf7d0;
                  border-radius: 6px; font-size: 13px; color: var(--color-success); display: none; }
 
-    /* ===== Step 2 – Mapping ===== */
+    /* Step 2 */
     .mapping-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .mapping-table th { text-align: left; padding: 8px 12px; background: var(--color-bg);
-                        border-bottom: 1px solid var(--color-border); font-weight: 600; color: var(--color-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+                        border-bottom: 1px solid var(--color-border); font-weight: 600; color: var(--color-muted);
+                        font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
     .mapping-table td { padding: 9px 12px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
     .mapping-table tr:last-child td { border-bottom: none; }
     .mapping-table select { width: 100%; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; }
     .mapping-table select.unmapped { border-color: var(--color-warning); background: #fffbeb; }
     .sample-values { font-size: 11px; color: var(--color-muted); margin-top: 4px; }
-    .status-ok  { color: var(--color-success); font-weight: 600; }
+    .status-ok { color: var(--color-success); font-weight: 600; }
     .status-err { color: var(--color-warning); font-weight: 600; }
 
-    /* ===== Step 3 – Parameters ===== */
+    /* Step 3 */
     .params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 20px; }
     @media (max-width: 600px) { .params-grid { grid-template-columns: 1fr; } }
-    .param-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--color-muted); text-transform: uppercase; letter-spacing: .5px; }
-
+    .param-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--color-muted);
+                        text-transform: uppercase; letter-spacing: .5px; }
     .weight-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .weight-row label { width: 100px; font-size: 14px; }
-    .weight-row input[type="number"] { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; text-align: center; }
+    .weight-row input[type="number"] { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border);
+                                        border-radius: 6px; text-align: center; }
     .weight-row .pct { color: var(--color-muted); font-size: 13px; }
     .weight-sum { font-size: 13px; margin-top: 6px; font-weight: 600; }
-    .weight-sum.ok  { color: var(--color-success); }
+    .weight-sum.ok { color: var(--color-success); }
     .weight-sum.err { color: var(--color-error); }
-
     .weight-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 12px; background: var(--color-border); }
     .weight-seg { height: 100%; transition: flex-basis .2s; }
     .weight-seg.edu { background: #6366f1; }
     .weight-seg.inc { background: #16a34a; }
     .weight-seg.occ { background: #d97706; }
-
     .rebalance-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--color-muted); }
     .rebalance-row input { cursor: pointer; }
-
     .threshold-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
     .threshold-row label { width: 110px; font-size: 14px; }
-    .threshold-row input[type="number"] { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: 6px; text-align: center; }
+    .threshold-row input[type="number"] { width: 72px; padding: 6px 8px; border: 1px solid var(--color-border);
+                                           border-radius: 6px; text-align: center; }
     .threshold-row .hint { font-size: 12px; color: var(--color-muted); }
-
-    .error-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--color-error); margin-top: 12px; display: none; }
+    .error-banner { background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 10px 14px;
+                    font-size: 13px; color: var(--color-error); margin-top: 12px; display: none; }
     .error-banner ul { margin: 4px 0 0 16px; }
 
-    /* ===== Buttons ===== */
-    .btn {
-      display: inline-flex; align-items: center; gap: 7px;
-      padding: 9px 20px; border-radius: 7px; border: none; font-weight: 600; font-size: 14px;
-      transition: opacity .15s, transform .1s;
-    }
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 20px; border-radius: 7px;
+           border: none; font-weight: 600; font-size: 14px; transition: opacity .15s, transform .1s; }
     .btn:active { transform: scale(.97); }
     .btn:disabled { opacity: .45; cursor: not-allowed; }
-    .btn-primary  { background: var(--color-primary); color: #fff; }
-    .btn-primary:hover:not(:disabled)  { background: #1d4ed8; }
-    .btn-success  { background: var(--color-success); color: #fff; }
-    .btn-success:hover:not(:disabled)  { background: #15803d; }
-    .btn-outline  { background: #fff; color: var(--color-primary); border: 1px solid var(--color-primary); }
-    .btn-outline:hover:not(:disabled)  { background: #eff6ff; }
+    .btn-primary { background: var(--color-primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+    .btn-success { background: var(--color-success); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+    .btn-outline { background: #fff; color: var(--color-primary); border: 1px solid var(--color-primary); }
+    .btn-outline:hover:not(:disabled) { background: #eff6ff; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 5px; }
 
-    /* ===== Step 4 – Results ===== */
+    /* Step 4 */
     .warning-banner { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px;
                       padding: 10px 14px; font-size: 13px; color: var(--color-warning); margin-bottom: 16px; display: none; }
     .warning-banner summary { cursor: pointer; font-weight: 600; }
     .warning-list { margin: 8px 0 0 16px; max-height: 140px; overflow-y: auto; }
     .warning-list li { font-size: 12px; color: var(--color-text); margin-bottom: 2px; }
-
     .results-layout { display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start; margin: 18px 0; }
     @media (max-width: 600px) { .results-layout { grid-template-columns: 1fr; } }
     #sec-chart { max-width: 220px; max-height: 220px; }
-
     .summary-table { width: 100%; border-collapse: collapse; font-size: 14px; }
     .summary-table th { text-align: left; padding: 8px 12px; background: var(--color-bg);
-                        border-bottom: 2px solid var(--color-border); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--color-muted); }
+                        border-bottom: 2px solid var(--color-border); font-weight: 600; font-size: 12px;
+                        text-transform: uppercase; letter-spacing: .5px; color: var(--color-muted); }
     .summary-table td { padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
     .summary-table tr:last-child td { border-bottom: none; }
     .summary-table .total-row td { font-weight: 700; background: var(--color-bg); }
     .sec-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-    .dot-ab { background: var(--color-ab); }
-    .dot-c1 { background: var(--color-c1); }
-    .dot-c2 { background: var(--color-c2); }
-    .dot-de { background: var(--color-de); }
+    .dot-ab { background: var(--color-ab); } .dot-c1 { background: var(--color-c1); }
+    .dot-c2 { background: var(--color-c2); } .dot-de { background: var(--color-de); }
     .pct-bar-cell { width: 120px; }
     .pct-bar-wrap { background: var(--color-border); border-radius: 4px; height: 8px; overflow: hidden; }
     .pct-bar-fill { height: 100%; border-radius: 4px; }
 
-    /* Unknown values panel */
     .unknown-panel { border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; display: none; }
-    .unknown-panel summary { padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 600; background: var(--color-bg); list-style: none; display: flex; align-items: center; gap: 6px; }
-    .unknown-panel summary::before { content: '▶'; font-size: 10px; transition: transform .2s; }
+    .unknown-panel summary { padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 600;
+                             background: var(--color-bg); list-style: none; display: flex; align-items: center; gap: 6px; }
+    .unknown-panel summary::before { content: '\25B6'; font-size: 10px; transition: transform .2s; }
     .unknown-panel[open] summary::before { transform: rotate(90deg); }
     .unknown-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
     .unknown-row { display: flex; align-items: center; gap: 10px; font-size: 13px; flex-wrap: wrap; }
     .unknown-row .field-label { color: var(--color-muted); min-width: 90px; }
-    .unknown-row .raw-val { font-family: monospace; background: var(--color-bg); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--color-border); }
+    .unknown-row .raw-val { font-family: monospace; background: var(--color-bg); padding: 2px 7px;
+                            border-radius: 4px; border: 1px solid var(--color-border); }
     .unknown-row select { padding: 4px 7px; border: 1px solid var(--color-border); border-radius: 5px; }
-
     .results-actions { display: flex; gap: 10px; flex-wrap: wrap; }
     #reset-btn { margin-left: auto; }
+
+    /* Toggle side panel button */
+    .toggle-side-btn { position: fixed; right: 20px; bottom: 20px; z-index: 100; width: 48px; height: 48px;
+                       border-radius: 50%; background: var(--color-primary); color: #fff; border: none;
+                       font-size: 20px; box-shadow: 0 4px 12px rgba(0,0,0,.2); display: none; }
+    .toggle-side-btn:hover { background: #1d4ed8; }
+    .toggle-side-btn.visible { display: flex; align-items: center; justify-content: center; }
 
     footer { text-align: center; padding: 20px; font-size: 12px; color: var(--color-muted); }
   </style>
@@ -191,157 +217,138 @@
 <body>
 
 <header>
-  <div class="logo">📊</div>
+  <div class="logo">&#x1F4CA;</div>
   <div>
     <h1>SEC Calculator</h1>
-    <p>Socio-Economic Classification — upload, adjust weights &amp; download</p>
+    <p>Socio-Economic Classification &mdash; upload, adjust weights, edit maps &amp; download</p>
   </div>
 </header>
 
-<div class="container">
+<div class="app-layout">
+  <div class="main-col">
 
-  <!-- STEP 1: Upload -->
-  <section id="panel-upload" class="panel" data-state="active">
-    <div class="panel-header">
-      <div class="step-badge">1</div>
-      <h2>Upload Survey File</h2>
-    </div>
-    <div class="drop-zone" id="drop-zone">
-      <div class="icon">📂</div>
-      <p><strong>Click to browse</strong> or drag &amp; drop your Excel file here</p>
-      <p style="margin-top:6px">Supports .xlsx and .xls</p>
-    </div>
-    <input type="file" id="file-input" accept=".xlsx,.xls">
-    <div id="file-info"></div>
-  </section>
-
-  <!-- STEP 2: Column Mapping -->
-  <section id="panel-mapping" class="panel" data-state="inactive">
-    <div class="panel-header">
-      <div class="step-badge">2</div>
-      <h2>Confirm Column Mapping</h2>
-    </div>
-    <p style="font-size:13px;color:var(--color-muted);margin-bottom:14px">
-      We auto-detected the columns below. Verify each mapping and correct any that are highlighted in orange.
-    </p>
-    <table class="mapping-table">
-      <thead>
-        <tr><th>Variable</th><th>Column in your file</th><th>Sample values</th><th>Status</th></tr>
-      </thead>
-      <tbody id="mapping-tbody"></tbody>
-    </table>
-    <div style="margin-top:16px">
-      <button id="btn-confirm-mapping" class="btn btn-primary" disabled>Confirm Mapping →</button>
-    </div>
-  </section>
-
-  <!-- STEP 3: Parameters -->
-  <section id="panel-params" class="panel" data-state="inactive">
-    <div class="panel-header">
-      <div class="step-badge">3</div>
-      <h2>Adjust Weights &amp; Thresholds</h2>
-    </div>
-    <div class="params-grid">
-      <!-- Weights -->
-      <div class="param-section">
-        <h3>Index Weights</h3>
-        <div class="weight-row">
-          <label>Education</label>
-          <input type="number" id="w-edu" min="0" max="100" step="1" value="15">
-          <span class="pct">%</span>
-        </div>
-        <div class="weight-row">
-          <label>Income</label>
-          <input type="number" id="w-inc" min="0" max="100" step="1" value="70">
-          <span class="pct">%</span>
-        </div>
-        <div class="weight-row">
-          <label>Occupation</label>
-          <input type="number" id="w-occ" min="0" max="100" step="1" value="15">
-          <span class="pct">%</span>
-        </div>
-        <div id="weight-sum-label" class="weight-sum ok">Sum: 100% ✓</div>
-        <div class="weight-bar">
-          <div class="weight-seg edu" id="bar-edu" style="flex-basis:15%"></div>
-          <div class="weight-seg inc" id="bar-inc" style="flex-basis:70%"></div>
-          <div class="weight-seg occ" id="bar-occ" style="flex-basis:15%"></div>
-        </div>
-        <div class="rebalance-row">
-          <input type="checkbox" id="auto-rebalance" checked>
-          <label for="auto-rebalance">Auto-rebalance others to keep sum = 100%</label>
-        </div>
-        <div style="margin-top:8px;font-size:12px;color:var(--color-muted)">
-          <span style="color:#6366f1">■</span> Education &nbsp;
-          <span style="color:#16a34a">■</span> Income &nbsp;
-          <span style="color:#d97706">■</span> Occupation
-        </div>
+    <!-- STEP 1: Upload -->
+    <section id="panel-upload" class="panel" data-state="active">
+      <div class="panel-header"><div class="step-badge">1</div><h2>Upload Survey File</h2></div>
+      <div class="drop-zone" id="drop-zone">
+        <div class="icon">&#x1F4C2;</div>
+        <p><strong>Click to browse</strong> or drag &amp; drop your Excel file here</p>
+        <p style="margin-top:6px">Supports .xlsx and .xls</p>
       </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls">
+      <div id="file-info"></div>
+    </section>
 
-      <!-- Thresholds -->
-      <div class="param-section">
-        <h3>Classification Thresholds</h3>
-        <p style="font-size:12px;color:var(--color-muted);margin-bottom:12px">Index ranges 0–100. Each value is the upper bound (exclusive) of that class.</p>
-        <div class="threshold-row">
-          <label><span class="sec-dot dot-de"></span>D/E below</label>
-          <input type="number" id="t-de" min="1" max="99" step="1" value="38">
-          <span class="hint">index &lt; 38</span>
-        </div>
-        <div class="threshold-row">
-          <label><span class="sec-dot dot-c2"></span>C2 below</label>
-          <input type="number" id="t-c2" min="1" max="99" step="1" value="62">
-          <span class="hint">38 ≤ index &lt; 62</span>
-        </div>
-        <div class="threshold-row">
-          <label><span class="sec-dot dot-c1"></span>C1 below</label>
-          <input type="number" id="t-c1" min="1" max="99" step="1" value="74">
-          <span class="hint">62 ≤ index &lt; 74</span>
-        </div>
-        <div style="font-size:13px;color:var(--color-muted);margin-top:8px">
-          <span class="sec-dot dot-ab"></span><strong>A/B:</strong> index ≥ C1 threshold
-        </div>
-      </div>
-    </div>
-
-    <div id="param-errors" class="error-banner"></div>
-    <button id="btn-calculate" class="btn btn-primary">Calculate SEC ▶</button>
-  </section>
-
-  <!-- STEP 4: Results -->
-  <section id="panel-results" class="panel" data-state="inactive">
-    <div class="panel-header">
-      <div class="step-badge">4</div>
-      <h2>Results</h2>
-    </div>
-
-    <details id="warning-details" class="warning-banner">
-      <summary id="warning-summary"></summary>
-      <ul class="warning-list" id="warning-list"></ul>
-    </details>
-
-    <details id="unknown-panel" class="unknown-panel">
-      <summary>⚠ Unrecognized values — click to assign codes manually</summary>
-      <div class="unknown-body" id="unknown-body"></div>
-    </details>
-
-    <div class="results-layout">
-      <table class="summary-table" id="summary-table">
-        <thead>
-          <tr><th>Class</th><th>Count</th><th>%</th><th>Range</th><th class="pct-bar-cell"></th></tr>
-        </thead>
-        <tbody id="summary-tbody"></tbody>
+    <!-- STEP 2: Column Mapping -->
+    <section id="panel-mapping" class="panel" data-state="inactive">
+      <div class="panel-header"><div class="step-badge">2</div><h2>Confirm Column Mapping</h2></div>
+      <p style="font-size:13px;color:var(--color-muted);margin-bottom:14px">
+        Auto-detected columns below. Verify each mapping and correct any highlighted in orange.
+      </p>
+      <table class="mapping-table">
+        <thead><tr><th>Variable</th><th>Column in file</th><th>Sample values</th><th>Status</th></tr></thead>
+        <tbody id="mapping-tbody"></tbody>
       </table>
-      <canvas id="sec-chart"></canvas>
+      <div style="margin-top:16px">
+        <button id="btn-confirm-mapping" class="btn btn-primary" disabled>Confirm Mapping &rarr;</button>
+      </div>
+    </section>
+
+    <!-- STEP 3: Parameters -->
+    <section id="panel-params" class="panel" data-state="inactive">
+      <div class="panel-header"><div class="step-badge">3</div><h2>Adjust Weights &amp; Thresholds</h2></div>
+      <div class="params-grid">
+        <div class="param-section">
+          <h3>Index Weights</h3>
+          <div class="weight-row"><label>Education</label><input type="number" id="w-edu" min="0" max="100" step="1" value="15"><span class="pct">%</span></div>
+          <div class="weight-row"><label>Income</label><input type="number" id="w-inc" min="0" max="100" step="1" value="70"><span class="pct">%</span></div>
+          <div class="weight-row"><label>Occupation</label><input type="number" id="w-occ" min="0" max="100" step="1" value="15"><span class="pct">%</span></div>
+          <div id="weight-sum-label" class="weight-sum ok">Sum: 100% &#x2713;</div>
+          <div class="weight-bar">
+            <div class="weight-seg edu" id="bar-edu" style="flex-basis:15%"></div>
+            <div class="weight-seg inc" id="bar-inc" style="flex-basis:70%"></div>
+            <div class="weight-seg occ" id="bar-occ" style="flex-basis:15%"></div>
+          </div>
+          <div class="rebalance-row"><input type="checkbox" id="auto-rebalance" checked><label for="auto-rebalance">Auto-rebalance to keep sum = 100%</label></div>
+          <div style="margin-top:8px;font-size:12px;color:var(--color-muted)">
+            <span style="color:#6366f1">&#9632;</span> Education &nbsp;
+            <span style="color:#16a34a">&#9632;</span> Income &nbsp;
+            <span style="color:#d97706">&#9632;</span> Occupation
+          </div>
+        </div>
+        <div class="param-section">
+          <h3>Classification Thresholds</h3>
+          <p style="font-size:12px;color:var(--color-muted);margin-bottom:12px">Index ranges 0&ndash;100. Each value is the upper bound (exclusive) of that class.</p>
+          <div class="threshold-row"><label><span class="sec-dot dot-de"></span>D/E below</label><input type="number" id="t-de" min="1" max="99" step="1" value="38"><span class="hint">index &lt; 38</span></div>
+          <div class="threshold-row"><label><span class="sec-dot dot-c2"></span>C2 below</label><input type="number" id="t-c2" min="1" max="99" step="1" value="62"><span class="hint">38 &le; index &lt; 62</span></div>
+          <div class="threshold-row"><label><span class="sec-dot dot-c1"></span>C1 below</label><input type="number" id="t-c1" min="1" max="99" step="1" value="74"><span class="hint">62 &le; index &lt; 74</span></div>
+          <div style="font-size:13px;color:var(--color-muted);margin-top:8px"><span class="sec-dot dot-ab"></span><strong>A/B:</strong> index &ge; C1 threshold</div>
+        </div>
+      </div>
+      <div id="param-errors" class="error-banner"></div>
+      <button id="btn-calculate" class="btn btn-primary">Calculate SEC &#x25B6;</button>
+    </section>
+
+    <!-- STEP 4: Results -->
+    <section id="panel-results" class="panel" data-state="inactive">
+      <div class="panel-header"><div class="step-badge">4</div><h2>Results</h2></div>
+      <details id="warning-details" class="warning-banner">
+        <summary id="warning-summary"></summary>
+        <ul class="warning-list" id="warning-list"></ul>
+      </details>
+      <details id="unknown-panel" class="unknown-panel">
+        <summary>&#x26A0; Unrecognized values &mdash; click to assign codes manually</summary>
+        <div class="unknown-body" id="unknown-body"></div>
+      </details>
+      <div class="results-layout">
+        <table class="summary-table" id="summary-table">
+          <thead><tr><th>Class</th><th>Count</th><th>%</th><th>Range</th><th class="pct-bar-cell"></th></tr></thead>
+          <tbody id="summary-tbody"></tbody>
+        </table>
+        <canvas id="sec-chart"></canvas>
+      </div>
+      <div class="results-actions">
+        <button id="btn-download" class="btn btn-success">&#x2B07; Download Excel</button>
+        <button id="reset-btn" class="btn btn-outline">&#x21BA; Load New File</button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- SIDE PANEL -->
+  <aside class="side-panel" id="side-panel">
+    <div class="side-panel-header">
+      <h3>Data Inspector</h3>
+      <button class="btn btn-sm btn-outline" id="side-close-btn" style="padding:4px 10px;font-size:12px">&#x2715; Close</button>
+    </div>
+    <div class="side-tabs">
+      <button class="side-tab active" data-tab="tab-preview">Data Preview</button>
+      <button class="side-tab" data-tab="tab-maps">Encoding Maps</button>
     </div>
 
-    <div class="results-actions">
-      <button id="btn-download" class="btn btn-success">⬇ Download Excel</button>
-      <button id="reset-btn" class="btn btn-outline">↺ Load New File</button>
+    <!-- Tab: Data Preview -->
+    <div class="side-tab-content active" id="tab-preview">
+      <div class="data-stats" id="data-stats"></div>
+      <div id="col-summaries"></div>
     </div>
-  </section>
 
+    <!-- Tab: Encoding Maps -->
+    <div class="side-tab-content" id="tab-maps">
+      <p style="font-size:12px;color:var(--color-muted);margin-bottom:12px">
+        Edit text-to-code mappings below. Changes apply immediately to the calculation. Add rows for new values or delete existing ones.
+      </p>
+      <div id="map-editor"></div>
+      <div class="map-actions">
+        <button class="btn btn-sm btn-primary" id="btn-apply-maps">Apply &amp; Recalculate</button>
+        <button class="btn btn-sm btn-outline" id="btn-reset-maps">Reset to Defaults</button>
+      </div>
+    </div>
+  </aside>
 </div>
 
-<footer>SEC Calculator — single-file browser tool &nbsp;|&nbsp; No data leaves your computer</footer>
+<button class="toggle-side-btn" id="toggle-side-btn" title="Toggle Data Inspector">&#x1F50D;</button>
+
+<footer>SEC Calculator &mdash; single-file browser tool &nbsp;|&nbsp; No data leaves your computer</footer>
 
 <script>
 'use strict';
@@ -350,86 +357,77 @@
    APP STATE
    ========================================== */
 const AppState = {
-  rawRows: [],
-  headers: [],
-  uploadedFilename: '',
+  rawRows: [], headers: [], uploadedFilename: '',
   mapping: { household: null, education: null, employment: null, occupation: null, income: null },
   weights: { education: 15, income: 70, occupation: 15 },
   thresholds: { de: 38, c2: 62, c1: 74 },
-  encodedRows: [],    // after encoding step (text → numbers)
-  results: [],        // after classification
-  warnings: [],
-  unknownValues: {},  // field → Set of unrecognized strings
-  userOverrides: {},  // "field:value" → numeric code
+  encodedRows: [], results: [], warnings: [],
+  unknownValues: {}, userOverrides: {},
   chartInstance: null
 };
 
 /* ==========================================
-   ENCODING MAPS  (exact strings from R script)
+   ENCODING MAPS — now mutable objects
    ========================================== */
-const EDU_MAP = {
-  "i don't have formal education": 1,
-  "primary": 2,
-  "secondary": 3,
-  "high school": 4,
-  "graduate": 5,
-  "postgraduate": 6
+const DEFAULT_MAPS = {
+  EDU_MAP: {
+    "i don't have formal education": 1, "primary": 2, "secondary": 3,
+    "high school": 4, "graduate": 5, "postgraduate": 6
+  },
+  EMPLOYMENT_MAP: { "unemployed": 1, "student": 2, "retired": 2 },
+  OCCUPATION_MAP: {
+    "low skilled or unskilled labour": 3,
+    "skilled trade or technical occupation": 4,
+    "professional or managerial occupation": 5
+  },
+  INCOME_MAP: {
+    "up to 3000": 1, "between 3,001 and 5,000": 2, "between 5,001 and 10,000": 3,
+    "between 10,001 and 20,000": 4, "between 20,001 and 30,000": 5,
+    "between 30,001 and 40,000": 6, "over 40,000": 7
+  },
+  HOUSEHOLD_MAP: {
+    "1 (i am the only one)": 1, "2": 1, "3": 1,
+    "4": 2, "5": 2, "6": 3, "7": 3, "8": 3, "more than 8": 3
+  },
+  EDU_SPSS_MAP: {
+    "i don't have formal education": 1, "primary": 1, "secondary": 1, "high school": 1,
+    "graduate": 2, "postgraduate": 3
+  },
+  INCOME_SPSS_MAP: {
+    "up to 3000": 2, "between 3,001 and 5,000": 2, "between 5,001 and 10,000": 3,
+    "between 10,001 and 20,000": 4, "between 20,001 and 30,000": 5,
+    "between 30,001 and 40,000": 6, "over 40,000": 7
+  }
 };
 
-// d9_en → d9_new (non-null means "use this for occupation")
-const EMPLOYMENT_MAP = {
-  "unemployed": 1,
-  "student": 2,
-  "retired": 2
-  // everything else → null → fall through to d10_new
-};
+// Active maps (cloned from defaults, user can edit)
+let MAPS = {};
+function resetMaps() {
+  MAPS = {};
+  for (const k in DEFAULT_MAPS) MAPS[k] = { ...DEFAULT_MAPS[k] };
+}
+resetMaps();
 
-const OCCUPATION_MAP = {
-  "low skilled or unskilled labour": 3,
-  "skilled trade or technical occupation": 4,
-  "professional or managerial occupation": 5
-};
-
-const INCOME_MAP = {
-  "up to 3000": 1,
-  "between 3,001 and 5,000": 2,
-  "between 5,001 and 10,000": 3,
-  "between 10,001 and 20,000": 4,
-  "between 20,001 and 30,000": 5,
-  "between 30,001 and 40,000": 6,
-  "over 40,000": 7
-};
-
-const HOUSEHOLD_MAP = {
-  "1 (i am the only one)": 1, "2": 1, "3": 1,
-  "4": 2, "5": 2,
-  "6": 3, "7": 3, "8": 3, "more than 8": 3
-};
-
-const EDU_SPSS_MAP = {
-  "i don't have formal education": 1,
-  "primary": 1, "secondary": 1, "high school": 1,
-  "graduate": 2, "postgraduate": 3
-};
-
-const INCOME_SPSS_MAP = {
-  "up to 3000": 2, "between 3,001 and 5,000": 2,
-  "between 5,001 and 10,000": 3,
-  "between 10,001 and 20,000": 4,
-  "between 20,001 and 30,000": 5,
-  "between 30,001 and 40,000": 6,
-  "over 40,000": 7
-};
+// Try load saved maps
+function saveMapsToStorage() {
+  try { localStorage.setItem('sec_maps', JSON.stringify(MAPS)); } catch(_) {}
+}
+function loadMapsFromStorage() {
+  try {
+    const s = localStorage.getItem('sec_maps');
+    if (s) { const parsed = JSON.parse(s); for (const k in parsed) if (k in MAPS) MAPS[k] = parsed[k]; }
+  } catch(_) {}
+}
 
 /* ==========================================
-   COLUMN ALIASES for auto-detection
+   FIELD META
    ========================================== */
 const FIELD_META = {
-  household:  { label: 'Household Size (d7_en)',    aliases: ['d7_en','d7','household','household size','hh_size','hh size'] },
-  education:  { label: 'Education (d8_en)',          aliases: ['d8_en','d8','education','edu','education level'] },
-  employment: { label: 'Employment Status (d9_en)',  aliases: ['d9_en','d9','employment','employment status','emp_status','emp status'] },
-  occupation: { label: 'Occupation (d10_en)',        aliases: ['d10_en','d10','occupation','occupation type','occ'] },
-  income:     { label: 'Income (d11_en)',            aliases: ['d11_en','d11','income','income level','income_level'] }
+  household:  { label: 'Household Size (d7_en)',   aliases: ['d7_en','d7','household','household size','hh_size','hh size'] },
+  education:  { label: 'Education (d8_en)',         aliases: ['d8_en','d8','education','edu','education level'] },
+  employment: { label: 'Employment Status (d9_en)', aliases: ['d9_en','d9','employment','employment status','emp_status','emp status'] },
+  occupation: { label: 'Occupation (d10_en)',       aliases: ['d10_en','d10','occupation','occupation type','occ'] },
+  income:     { label: 'Income (d11_en)',           aliases: ['d11_en','d11','income','income level','income_level'] }
 };
 
 /* ==========================================
@@ -446,23 +444,20 @@ function lookupWithOverride(field, rawVal, map) {
 
 function encodeRow(row) {
   const m = AppState.mapping;
+  const rawEdu = row[m.education] != null ? String(row[m.education]) : '';
+  const rawEmp = row[m.employment] != null ? String(row[m.employment]) : '';
+  const rawOcc = row[m.occupation] != null ? String(row[m.occupation]) : '';
+  const rawInc = row[m.income] != null ? String(row[m.income]) : '';
+  const rawHH  = row[m.household] != null ? String(row[m.household]) : '';
 
-  const rawEdu  = row[m.education]  != null ? String(row[m.education])  : '';
-  const rawEmp  = row[m.employment] != null ? String(row[m.employment]) : '';
-  const rawOcc  = row[m.occupation] != null ? String(row[m.occupation]) : '';
-  const rawInc  = row[m.income]     != null ? String(row[m.income])     : '';
-  const rawHH   = row[m.household]  != null ? String(row[m.household])  : '';
-
-  const EDU      = lookupWithOverride('education',  rawEdu, EDU_MAP);
-  const d9_new   = rawEmp.trim() === '' ? null : lookupWithOverride('employment', rawEmp, EMPLOYMENT_MAP);
-  // employment returning null means "not in EMPLOYMENT_MAP" OR empty — distinguish:
-  // if rawEmp non-empty and not in map, it might be an employed worker → falls to d10_new
-  const d10_new  = lookupWithOverride('occupation', rawOcc, OCCUPATION_MAP);
+  const EDU      = lookupWithOverride('education', rawEdu, MAPS.EDU_MAP);
+  const d9_new   = rawEmp.trim() === '' ? null : lookupWithOverride('employment', rawEmp, MAPS.EMPLOYMENT_MAP);
+  const d10_new  = lookupWithOverride('occupation', rawOcc, MAPS.OCCUPATION_MAP);
   const occupation = (d9_new !== null && d9_new !== undefined) ? d9_new : d10_new;
-  const INCOME   = lookupWithOverride('income',     rawInc, INCOME_MAP);
-  const HS_spss  = lookupWithOverride('household',  rawHH,  HOUSEHOLD_MAP);
-  const EDU_spss = lookupWithOverride('education',  rawEdu, EDU_SPSS_MAP);
-  const INC_spss = lookupWithOverride('income',     rawInc, INCOME_SPSS_MAP);
+  const INCOME   = lookupWithOverride('income', rawInc, MAPS.INCOME_MAP);
+  const HS_spss  = lookupWithOverride('household', rawHH, MAPS.HOUSEHOLD_MAP);
+  const EDU_spss = lookupWithOverride('education', rawEdu, MAPS.EDU_SPSS_MAP);
+  const INC_spss = lookupWithOverride('income', rawInc, MAPS.INCOME_SPSS_MAP);
 
   return { EDU, d9_new, d10_new, occupation, INCOME, HS_spss, EDU_spss, INC_spss,
            _rawEdu: rawEdu, _rawEmp: rawEmp, _rawOcc: rawOcc, _rawInc: rawInc, _rawHH: rawHH };
@@ -471,61 +466,70 @@ function encodeRow(row) {
 function collectUnknowns() {
   const unknowns = { education: new Set(), occupation: new Set(), income: new Set(), household: new Set() };
   const m = AppState.mapping;
-
   AppState.rawRows.forEach(row => {
-    const rawEdu = row[m.education]  != null ? String(row[m.education]).trim()  : '';
+    const rawEdu = row[m.education] != null ? String(row[m.education]).trim() : '';
     const rawOcc = row[m.occupation] != null ? String(row[m.occupation]).trim() : '';
-    const rawInc = row[m.income]     != null ? String(row[m.income]).trim()     : '';
-    const rawHH  = row[m.household]  != null ? String(row[m.household]).trim()  : '';
-
-    if (rawEdu && !(rawEdu.toLowerCase() in EDU_MAP) && !('education:'+rawEdu in AppState.userOverrides)) unknowns.education.add(rawEdu);
-    if (rawOcc && !(rawOcc.toLowerCase() in OCCUPATION_MAP) && !('occupation:'+rawOcc in AppState.userOverrides)) unknowns.occupation.add(rawOcc);
-    if (rawInc && !(rawInc.toLowerCase() in INCOME_MAP) && !('income:'+rawInc in AppState.userOverrides)) unknowns.income.add(rawInc);
-    if (rawHH  && !(rawHH.toLowerCase()  in HOUSEHOLD_MAP)  && !('household:'+rawHH  in AppState.userOverrides)) unknowns.household.add(rawHH);
+    const rawInc = row[m.income] != null ? String(row[m.income]).trim() : '';
+    const rawHH  = row[m.household] != null ? String(row[m.household]).trim() : '';
+    if (rawEdu && !(rawEdu.toLowerCase() in MAPS.EDU_MAP) && !('education:'+rawEdu in AppState.userOverrides)) unknowns.education.add(rawEdu);
+    if (rawOcc && !(rawOcc.toLowerCase() in MAPS.OCCUPATION_MAP) && !('occupation:'+rawOcc in AppState.userOverrides)) unknowns.occupation.add(rawOcc);
+    if (rawInc && !(rawInc.toLowerCase() in MAPS.INCOME_MAP) && !('income:'+rawInc in AppState.userOverrides)) unknowns.income.add(rawInc);
+    if (rawHH  && !(rawHH.toLowerCase() in MAPS.HOUSEHOLD_MAP) && !('household:'+rawHH in AppState.userOverrides)) unknowns.household.add(rawHH);
   });
-
   AppState.unknownValues = unknowns;
 }
 
 /* ==========================================
    CALCULATION
    ========================================== */
+function getMapRange(mapObj) {
+  const vals = Object.values(mapObj).filter(v => typeof v === 'number' && !isNaN(v));
+  if (!vals.length) return { min: 1, max: 1 };
+  return { min: Math.min.apply(null, vals), max: Math.max.apply(null, vals) };
+}
+
+function getScalingRanges() {
+  const eduR = getMapRange(MAPS.EDU_MAP);
+  const incR = getMapRange(MAPS.INCOME_MAP);
+  // Occupation pulls codes from both EMPLOYMENT_MAP and OCCUPATION_MAP
+  const occVals = [].concat(Object.values(MAPS.EMPLOYMENT_MAP), Object.values(MAPS.OCCUPATION_MAP))
+                    .filter(v => typeof v === 'number' && !isNaN(v));
+  const occR = occVals.length
+    ? { min: Math.min.apply(null, occVals), max: Math.max.apply(null, occVals) }
+    : { min: 1, max: 1 };
+  return { edu: eduR, inc: incR, occ: occR };
+}
+
 function normalizeAndClassify(EDU, INCOME, occupation, weights, thresholds) {
-  const edu_scaled  = (EDU - 1) / 5;
-  const inc_scaled  = (INCOME - 1) / 6;
-  const occ_scaled  = (occupation - 1) / 4;
-
-  const wE = weights.education  / 100;
-  const wI = weights.income     / 100;
-  const wO = weights.occupation / 100;
-
+  const R = getScalingRanges();
+  const eduSpan = R.edu.max - R.edu.min;
+  const incSpan = R.inc.max - R.inc.min;
+  const occSpan = R.occ.max - R.occ.min;
+  const edu_scaled = eduSpan === 0 ? 0 : (EDU - R.edu.min) / eduSpan;
+  const inc_scaled = incSpan === 0 ? 0 : (INCOME - R.inc.min) / incSpan;
+  const occ_scaled = occSpan === 0 ? 0 : (occupation - R.occ.min) / occSpan;
+  const wE = weights.education / 100, wI = weights.income / 100, wO = weights.occupation / 100;
   const index = (edu_scaled * wE + inc_scaled * wI + occ_scaled * wO) * 100;
-
   let SEC_designation;
-  if      (index < thresholds.de) SEC_designation = 'D/E';
+  if (index < thresholds.de) SEC_designation = 'D/E';
   else if (index < thresholds.c2) SEC_designation = 'C2';
   else if (index < thresholds.c1) SEC_designation = 'C1';
-  else                             SEC_designation = 'A/B';
-
+  else SEC_designation = 'A/B';
   const SEC_code = { 'D/E': 1, 'C2': 2, 'C1': 3, 'A/B': 4 }[SEC_designation];
-
   return { Education_scaled: roundN(edu_scaled,6), income_scaled: roundN(inc_scaled,6),
-           occupation_scaled: roundN(occ_scaled,6), index: roundN(index,4),
-           SEC_designation, SEC_code };
+           occupation_scaled: roundN(occ_scaled,6), index: roundN(index,4), SEC_designation, SEC_code };
 }
 
 function roundN(v, d) { return Math.round(v * Math.pow(10,d)) / Math.pow(10,d); }
 
 function processAll() {
-  // Phase 1: encode
   AppState.encodedRows = AppState.rawRows.map(row => ({ ...row, ...encodeRow(row) }));
-  // Phase 2: classify
   classifyAll();
 }
 
 function classifyAll() {
   const warnings = [];
-  const results = AppState.encodedRows.map((row, idx) => {
+  AppState.results = AppState.encodedRows.map((row, idx) => {
     const { EDU, occupation, INCOME } = row;
     if (EDU == null || occupation == null || INCOME == null) {
       warnings.push({ rowNum: idx + 2, EDU, occupation, INCOME,
@@ -533,20 +537,15 @@ function classifyAll() {
       return { ...row, Education_scaled: null, income_scaled: null, occupation_scaled: null,
                index: null, SEC_designation: null, SEC_code: null };
     }
-    const calc = normalizeAndClassify(EDU, INCOME, occupation, AppState.weights, AppState.thresholds);
-    return { ...row, ...calc };
+    return { ...row, ...normalizeAndClassify(EDU, INCOME, occupation, AppState.weights, AppState.thresholds) };
   });
-
-  AppState.results = results;
   AppState.warnings = warnings;
 }
 
 function computeStats() {
   const counts = { 'A/B': 0, 'C1': 0, 'C2': 0, 'D/E': 0 };
   let total = 0;
-  AppState.results.forEach(r => {
-    if (r.SEC_designation) { counts[r.SEC_designation]++; total++; }
-  });
+  AppState.results.forEach(r => { if (r.SEC_designation) { counts[r.SEC_designation]++; total++; } });
   return { counts, total, excluded: AppState.warnings.length };
 }
 
@@ -556,19 +555,17 @@ function computeStats() {
 function validateWeights(w) {
   const errors = [];
   const sum = w.education + w.income + w.occupation;
-  if (Math.abs(sum - 100) > 0.5) errors.push(`Weights must sum to 100%. Current sum: ${sum}%`);
-  ['education','income','occupation'].forEach(k => {
-    if (w[k] < 0 || w[k] > 100) errors.push(`${k} weight must be 0–100`);
-  });
+  if (Math.abs(sum - 100) > 0.5) errors.push('Weights must sum to 100%. Current sum: ' + sum + '%');
+  ['education','income','occupation'].forEach(k => { if (w[k] < 0 || w[k] > 100) errors.push(k + ' weight must be 0-100'); });
   return errors;
 }
 
 function validateThresholds(t) {
   const errors = [];
   if (t.de <= 0 || t.de >= 100) errors.push('D/E threshold must be between 1 and 99');
-  if (t.c2 <= t.de) errors.push('C2 threshold must be greater than D/E threshold');
-  if (t.c1 <= t.c2) errors.push('C1 threshold must be greater than C2 threshold');
-  if (t.c1 >= 100)  errors.push('C1 threshold must be less than 100');
+  if (t.c2 <= t.de) errors.push('C2 threshold must be > D/E threshold');
+  if (t.c1 <= t.c2) errors.push('C1 threshold must be > C2 threshold');
+  if (t.c1 >= 100) errors.push('C1 threshold must be < 100');
   return errors;
 }
 
@@ -579,14 +576,9 @@ function autoRebalance(changed, newValue) {
   const others = ['education','income','occupation'].filter(k => k !== changed);
   const othersSum = others.reduce((s,k) => s + AppState.weights[k], 0);
   const needed = 100 - newValue;
-
-  if (othersSum === 0) {
-    others.forEach(k => AppState.weights[k] = Math.round(needed / 2));
-  } else {
-    others.forEach(k => {
-      AppState.weights[k] = Math.round((AppState.weights[k] / othersSum) * needed);
-    });
-    // fix rounding drift on largest
+  if (othersSum === 0) { others.forEach(k => AppState.weights[k] = Math.round(needed / 2)); }
+  else {
+    others.forEach(k => { AppState.weights[k] = Math.round((AppState.weights[k] / othersSum) * needed); });
     const total = newValue + others.reduce((s,k) => s + AppState.weights[k], 0);
     if (total !== 100) {
       const biggest = others.reduce((a,b) => AppState.weights[a] >= AppState.weights[b] ? a : b);
@@ -616,9 +608,11 @@ function handleFile(file) {
       renderMappingPanel();
       setPanel('panel-upload', 'complete');
       setPanel('panel-mapping', 'active');
-    } catch(err) {
-      alert('Failed to read file. Please ensure it is a valid .xlsx or .xls file.\n' + err.message);
-    }
+      // Show side panel + toggle button
+      document.getElementById('toggle-side-btn').classList.add('visible');
+      showSidePanel();
+      renderDataPreview();
+    } catch(err) { alert('Failed to read file.\n' + err.message); }
   };
   reader.readAsArrayBuffer(file);
 }
@@ -626,14 +620,12 @@ function handleFile(file) {
 /* ==========================================
    UI – PANELS & HELPERS
    ========================================== */
-function setPanel(id, state) {
-  document.getElementById(id).dataset.state = state;
-}
+function setPanel(id, state) { document.getElementById(id).dataset.state = state; }
 
 function showFileInfo(name, count) {
   const el = document.getElementById('file-info');
   el.style.display = 'block';
-  el.textContent = `✓ Loaded: ${name}  —  ${count.toLocaleString()} rows`;
+  el.textContent = '\u2713 Loaded: ' + name + '  \u2014  ' + count.toLocaleString() + ' rows';
 }
 
 /* ==========================================
@@ -643,16 +635,15 @@ function autoDetect(headers) {
   const mapping = {};
   Object.keys(FIELD_META).forEach(field => {
     const aliases = FIELD_META[field].aliases;
-    const match = headers.find(h => aliases.includes(h.toLowerCase().trim()));
-    mapping[field] = match || null;
+    mapping[field] = headers.find(h => aliases.includes(h.toLowerCase().trim())) || null;
   });
   return mapping;
 }
 
-function getSampleValues(col, max=3) {
-  const seen = new Set();
-  const out = [];
-  for (let row of AppState.rawRows) {
+function getSampleValues(col, max) {
+  max = max || 3;
+  const seen = new Set(); const out = [];
+  for (const row of AppState.rawRows) {
     const v = String(row[col] || '').trim();
     if (v && !seen.has(v)) { seen.add(v); out.push(v); }
     if (out.length >= max) break;
@@ -663,27 +654,19 @@ function getSampleValues(col, max=3) {
 function renderMappingPanel() {
   const detected = autoDetect(AppState.headers);
   AppState.mapping = { ...detected };
-
   const tbody = document.getElementById('mapping-tbody');
   tbody.innerHTML = '';
-
   Object.keys(FIELD_META).forEach(field => {
     const meta = FIELD_META[field];
     const tr = document.createElement('tr');
-
-    // Variable label
     const tdLabel = document.createElement('td');
-    tdLabel.style.fontWeight = '500';
-    tdLabel.style.fontSize = '13px';
-    tdLabel.textContent = meta.label;
-    tr.appendChild(tdLabel);
-
-    // Select
+    tdLabel.style.fontWeight = '500'; tdLabel.style.fontSize = '13px';
+    tdLabel.textContent = meta.label; tr.appendChild(tdLabel);
     const tdSelect = document.createElement('td');
     const sel = document.createElement('select');
     sel.id = 'map-' + field;
     const blank = document.createElement('option');
-    blank.value = ''; blank.textContent = '— select column —';
+    blank.value = ''; blank.textContent = '\u2014 select column \u2014';
     sel.appendChild(blank);
     AppState.headers.forEach(h => {
       const opt = document.createElement('option');
@@ -692,138 +675,92 @@ function renderMappingPanel() {
       sel.appendChild(opt);
     });
     if (!detected[field]) sel.classList.add('unmapped');
-    sel.addEventListener('change', () => onMappingChange(field, sel));
-    tdSelect.appendChild(sel);
-    tr.appendChild(tdSelect);
-
-    // Sample values
+    sel.addEventListener('change', () => { onMappingChange(field, sel); renderDataPreview(); });
+    tdSelect.appendChild(sel); tr.appendChild(tdSelect);
     const tdSample = document.createElement('td');
-    const col = detected[field];
-    if (col) {
-      const samples = getSampleValues(col);
-      tdSample.innerHTML = `<div class="sample-values">${samples.map(s => `"${s}"`).join(', ')}</div>`;
-    }
     tdSample.id = 'sample-' + field;
+    if (detected[field]) {
+      const samples = getSampleValues(detected[field]);
+      tdSample.innerHTML = '<div class="sample-values">' + samples.map(s => '"' + s + '"').join(', ') + '</div>';
+    }
     tr.appendChild(tdSample);
-
-    // Status
     const tdStatus = document.createElement('td');
     tdStatus.id = 'status-' + field;
     tdStatus.innerHTML = detected[field]
-      ? `<span class="status-ok">✓ Auto</span>`
-      : `<span class="status-err">⚠ Required</span>`;
+      ? '<span class="status-ok">\u2713 Auto</span>'
+      : '<span class="status-err">\u26A0 Required</span>';
     tr.appendChild(tdStatus);
-
     tbody.appendChild(tr);
   });
-
   checkMappingComplete();
 }
 
 function onMappingChange(field, sel) {
   AppState.mapping[field] = sel.value || null;
   sel.classList.toggle('unmapped', !sel.value);
-
-  // Update sample values
   const sampleEl = document.getElementById('sample-' + field);
   if (sel.value) {
     const samples = getSampleValues(sel.value);
-    sampleEl.innerHTML = `<div class="sample-values">${samples.map(s => `"${s}"`).join(', ')}</div>`;
-  } else {
-    sampleEl.innerHTML = '';
-  }
-
-  // Update status
+    sampleEl.innerHTML = '<div class="sample-values">' + samples.map(s => '"' + s + '"').join(', ') + '</div>';
+  } else sampleEl.innerHTML = '';
   const statusEl = document.getElementById('status-' + field);
-  statusEl.innerHTML = sel.value
-    ? `<span class="status-ok">✓</span>`
-    : `<span class="status-err">⚠ Required</span>`;
-
+  statusEl.innerHTML = sel.value ? '<span class="status-ok">\u2713</span>' : '<span class="status-err">\u26A0 Required</span>';
   checkMappingComplete();
 }
 
 function checkMappingComplete() {
-  const allMapped = Object.values(AppState.mapping).every(v => v !== null);
-  document.getElementById('btn-confirm-mapping').disabled = !allMapped;
+  document.getElementById('btn-confirm-mapping').disabled = !Object.values(AppState.mapping).every(v => v !== null);
 }
 
 /* ==========================================
    UI – WEIGHTS & THRESHOLDS
    ========================================== */
 function readWeightInputs() {
-  return {
-    education:  parseInt(document.getElementById('w-edu').value) || 0,
-    income:     parseInt(document.getElementById('w-inc').value) || 0,
-    occupation: parseInt(document.getElementById('w-occ').value) || 0
-  };
+  return { education: parseInt(document.getElementById('w-edu').value)||0,
+           income: parseInt(document.getElementById('w-inc').value)||0,
+           occupation: parseInt(document.getElementById('w-occ').value)||0 };
 }
-
 function readThresholdInputs() {
-  return {
-    de: parseFloat(document.getElementById('t-de').value) || 0,
-    c2: parseFloat(document.getElementById('t-c2').value) || 0,
-    c1: parseFloat(document.getElementById('t-c1').value) || 0
-  };
+  return { de: parseFloat(document.getElementById('t-de').value)||0,
+           c2: parseFloat(document.getElementById('t-c2').value)||0,
+           c1: parseFloat(document.getElementById('t-c1').value)||0 };
 }
-
 function writeWeightInputs(w) {
   document.getElementById('w-edu').value = w.education;
   document.getElementById('w-inc').value = w.income;
   document.getElementById('w-occ').value = w.occupation;
 }
-
 function updateWeightBar(w) {
   document.getElementById('bar-edu').style.flexBasis = w.education + '%';
   document.getElementById('bar-inc').style.flexBasis = w.income + '%';
   document.getElementById('bar-occ').style.flexBasis = w.occupation + '%';
   const sum = w.education + w.income + w.occupation;
   const label = document.getElementById('weight-sum-label');
-  label.textContent = `Sum: ${sum}%` + (sum === 100 ? ' ✓' : ' ✗');
+  label.textContent = 'Sum: ' + sum + '%' + (sum === 100 ? ' \u2713' : ' \u2717');
   label.className = 'weight-sum ' + (sum === 100 ? 'ok' : 'err');
 }
-
 function updateThresholdHints(t) {
-  document.querySelector('#t-de + .hint').textContent = `index < ${t.de}`;
-  document.querySelector('#t-c2 + .hint').textContent = `${t.de} ≤ index < ${t.c2}`;
-  document.querySelector('#t-c1 + .hint').textContent = `${t.c2} ≤ index < ${t.c1}`;
+  document.querySelector('#t-de + .hint').textContent = 'index < ' + t.de;
+  document.querySelector('#t-c2 + .hint').textContent = t.de + ' \u2264 index < ' + t.c2;
+  document.querySelector('#t-c1 + .hint').textContent = t.c2 + ' \u2264 index < ' + t.c1;
 }
-
 function onWeightInput(changed) {
   const raw = readWeightInputs();
-  const newVal = raw[changed];
-
-  if (document.getElementById('auto-rebalance').checked) {
-    autoRebalance(changed, newVal);
-    writeWeightInputs(AppState.weights);
-  } else {
-    AppState.weights = raw;
-  }
-
-  updateWeightBar(AppState.weights);
-  saveSettings();
+  if (document.getElementById('auto-rebalance').checked) { autoRebalance(changed, raw[changed]); writeWeightInputs(AppState.weights); }
+  else AppState.weights = raw;
+  updateWeightBar(AppState.weights); saveSettings();
   if (AppState.results.length > 0) triggerRecalculate();
 }
-
 function onThresholdInput() {
-  AppState.thresholds = readThresholdInputs();
-  updateThresholdHints(AppState.thresholds);
-  saveSettings();
+  AppState.thresholds = readThresholdInputs(); updateThresholdHints(AppState.thresholds); saveSettings();
   if (AppState.results.length > 0) triggerRecalculate();
 }
-
 function triggerRecalculate() {
-  const wErrors = validateWeights(AppState.weights);
-  const tErrors = validateThresholds(AppState.thresholds);
-  const all = [...wErrors, ...tErrors];
+  const all = [...validateWeights(AppState.weights), ...validateThresholds(AppState.thresholds)];
   const errEl = document.getElementById('param-errors');
-  if (all.length) {
-    errEl.style.display = 'block';
-    errEl.innerHTML = '<ul>' + all.map(e => `<li>${e}</li>`).join('') + '</ul>';
-    return;
-  }
+  if (all.length) { errEl.style.display = 'block'; errEl.innerHTML = '<ul>' + all.map(e => '<li>'+e+'</li>').join('') + '</ul>'; return; }
   errEl.style.display = 'none';
-  classifyAll();
-  renderResults();
+  classifyAll(); renderResults(); renderDataPreview();
 }
 
 /* ==========================================
@@ -831,10 +768,7 @@ function triggerRecalculate() {
    ========================================== */
 function renderResults() {
   const stats = computeStats();
-  renderSummaryTable(stats);
-  renderChart(stats);
-  renderWarnings();
-  renderUnknownValues();
+  renderSummaryTable(stats); renderChart(stats); renderWarnings(); renderUnknownValues();
   setPanel('panel-results', 'active');
   document.getElementById('panel-results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -843,41 +777,26 @@ function renderSummaryTable(stats) {
   const { counts, total, excluded } = stats;
   const tbody = document.getElementById('summary-tbody');
   tbody.innerHTML = '';
-
   const rows = [
-    { key: 'A/B', dot: 'dot-ab', range: `≥ ${AppState.thresholds.c1}`,          color: '#2563eb' },
-    { key: 'C1',  dot: 'dot-c1', range: `${AppState.thresholds.c2}–${AppState.thresholds.c1-0.01}`, color: '#16a34a' },
-    { key: 'C2',  dot: 'dot-c2', range: `${AppState.thresholds.de}–${AppState.thresholds.c2-0.01}`, color: '#d97706' },
-    { key: 'D/E', dot: 'dot-de', range: `< ${AppState.thresholds.de}`,            color: '#dc2626' }
+    { key:'A/B', dot:'dot-ab', range:'\u2265 '+AppState.thresholds.c1, color:'#2563eb' },
+    { key:'C1', dot:'dot-c1', range:AppState.thresholds.c2+'\u2013'+(AppState.thresholds.c1-0.01), color:'#16a34a' },
+    { key:'C2', dot:'dot-c2', range:AppState.thresholds.de+'\u2013'+(AppState.thresholds.c2-0.01), color:'#d97706' },
+    { key:'D/E', dot:'dot-de', range:'< '+AppState.thresholds.de, color:'#dc2626' }
   ];
-
   rows.forEach(({ key, dot, range, color }) => {
-    const n   = counts[key] || 0;
-    const pct = total > 0 ? (n / total * 100).toFixed(1) : '0.0';
-    const tr  = document.createElement('tr');
-    tr.innerHTML = `
-      <td><span class="sec-dot ${dot}"></span><strong>${key}</strong></td>
-      <td>${n.toLocaleString()}</td>
-      <td>${pct}%</td>
-      <td style="font-size:12px;color:var(--color-muted)">${range}</td>
-      <td class="pct-bar-cell">
-        <div class="pct-bar-wrap">
-          <div class="pct-bar-fill" style="width:${pct}%;background:${color}"></div>
-        </div>
-      </td>`;
+    const n = counts[key]||0;
+    const pct = total > 0 ? (n/total*100).toFixed(1) : '0.0';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td><span class="sec-dot '+dot+'"></span><strong>'+key+'</strong></td><td>'+n.toLocaleString()+'</td><td>'+pct+'%</td><td style="font-size:12px;color:var(--color-muted)">'+range+'</td><td class="pct-bar-cell"><div class="pct-bar-wrap"><div class="pct-bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div></td>';
     tbody.appendChild(tr);
   });
-
-  // Total row
-  const trTotal = document.createElement('tr');
-  trTotal.className = 'total-row';
-  trTotal.innerHTML = `<td>Total valid</td><td>${total.toLocaleString()}</td><td>100%</td><td></td><td></td>`;
-  tbody.appendChild(trTotal);
-
+  const trT = document.createElement('tr'); trT.className = 'total-row';
+  trT.innerHTML = '<td>Total valid</td><td>'+total.toLocaleString()+'</td><td>100%</td><td></td><td></td>';
+  tbody.appendChild(trT);
   if (excluded > 0) {
-    const trEx = document.createElement('tr');
-    trEx.innerHTML = `<td style="color:var(--color-warning)">Excluded (incomplete)</td><td style="color:var(--color-warning)">${excluded}</td><td></td><td></td><td></td>`;
-    tbody.appendChild(trEx);
+    const trE = document.createElement('tr');
+    trE.innerHTML = '<td style="color:var(--color-warning)">Excluded (incomplete)</td><td style="color:var(--color-warning)">'+excluded+'</td><td></td><td></td><td></td>';
+    tbody.appendChild(trE);
   }
 }
 
@@ -887,102 +806,92 @@ function renderChart(stats) {
   const { counts, total } = stats;
   AppState.chartInstance = new Chart(ctx, {
     type: 'doughnut',
-    data: {
-      labels: ['A/B', 'C1', 'C2', 'D/E'],
-      datasets: [{
-        data: [counts['A/B']||0, counts['C1']||0, counts['C2']||0, counts['D/E']||0],
-        backgroundColor: ['#2563eb','#16a34a','#d97706','#dc2626'],
-        borderWidth: 2, borderColor: '#fff'
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 8 } },
-        tooltip: {
-          callbacks: {
-            label: ctx => {
-              const pct = total > 0 ? (ctx.parsed / total * 100).toFixed(1) : '0.0';
-              return ` ${ctx.label}: ${ctx.parsed.toLocaleString()} (${pct}%)`;
-            }
-          }
-        }
-      }
-    }
+    data: { labels: ['A/B','C1','C2','D/E'],
+      datasets: [{ data: [counts['A/B']||0,counts['C1']||0,counts['C2']||0,counts['D/E']||0],
+                    backgroundColor: ['#2563eb','#16a34a','#d97706','#dc2626'], borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, plugins: {
+      legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 8 } },
+      tooltip: { callbacks: { label: ctx => { const pct = total>0?(ctx.parsed/total*100).toFixed(1):'0.0'; return ' '+ctx.label+': '+ctx.parsed.toLocaleString()+' ('+pct+'%)'; } } }
+    }}
   });
 }
 
 function renderWarnings() {
   const { warnings } = AppState;
   const details = document.getElementById('warning-details');
-  const list    = document.getElementById('warning-list');
+  const list = document.getElementById('warning-list');
   const summary = document.getElementById('warning-summary');
   list.innerHTML = '';
-
   if (!warnings.length) { details.style.display = 'none'; return; }
   details.style.display = 'block';
-  summary.textContent = `⚠ ${warnings.length} row${warnings.length>1?'s':''} excluded — missing or unrecognized values`;
-
+  summary.textContent = '\u26A0 ' + warnings.length + ' row' + (warnings.length>1?'s':'') + ' excluded \u2014 missing or unrecognized values';
   warnings.slice(0, 50).forEach(w => {
-    const li = document.createElement('li');
-    const parts = [];
-    if (w.EDU  == null) parts.push(`education="${w.edu}"`);
-    if (w.occupation == null) parts.push(`employment="${w.emp}" / occupation="${w.occ}"`);
-    if (w.INCOME == null) parts.push(`income="${w.inc}"`);
-    li.textContent = `Row ${w.rowNum}: ${parts.join('; ')}`;
-    list.appendChild(li);
+    const li = document.createElement('li'); const parts = [];
+    if (w.EDU == null) parts.push('education="'+w.edu+'"');
+    if (w.occupation == null) parts.push('employment="'+w.emp+'" / occupation="'+w.occ+'"');
+    if (w.INCOME == null) parts.push('income="'+w.inc+'"');
+    li.textContent = 'Row ' + w.rowNum + ': ' + parts.join('; '); list.appendChild(li);
   });
-  if (warnings.length > 50) {
-    const li = document.createElement('li');
-    li.textContent = `… and ${warnings.length - 50} more`;
-    list.appendChild(li);
-  }
+  if (warnings.length > 50) { const li = document.createElement('li'); li.textContent = '\u2026 and ' + (warnings.length-50) + ' more'; list.appendChild(li); }
 }
 
 function renderUnknownValues() {
   collectUnknowns();
   const unknowns = AppState.unknownValues;
   const panel = document.getElementById('unknown-panel');
-  const body  = document.getElementById('unknown-body');
+  const body = document.getElementById('unknown-body');
   body.innerHTML = '';
 
-  const OPTIONS = {
-    education:  ['1 – No formal','2 – Primary','3 – Secondary','4 – High School','5 – Graduate','6 – Postgraduate'],
-    occupation: ['3 – Low skilled/unskilled','4 – Skilled/technical','5 – Professional/managerial'],
-    income:     ['1 – Up to 3000','2 – 3001–5000','3 – 5001–10000','4 – 10001–20000','5 – 20001–30000','6 – 30001–40000','7 – Over 40000'],
-    household:  ['1 – 1-3 people','2 – 4-5 people','3 – 6+ people']
+  const MAP_KEY_FOR_FIELD = {
+    education: 'EDU_MAP', occupation: 'OCCUPATION_MAP',
+    income: 'INCOME_MAP', household: 'HOUSEHOLD_MAP'
   };
+
+  // Hint based on existing codes in each map
+  function getHint(field) {
+    const map = MAPS[MAP_KEY_FOR_FIELD[field]];
+    const vals = Object.values(map).filter(v => typeof v === 'number');
+    if (!vals.length) return 'any number';
+    const min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+    return 'existing codes: ' + min + '\u2013' + max + ' (or add new)';
+  }
 
   let hasAny = false;
   ['education','occupation','income','household'].forEach(field => {
     unknowns[field].forEach(rawVal => {
       hasAny = true;
-      const div = document.createElement('div');
-      div.className = 'unknown-row';
+      const div = document.createElement('div'); div.className = 'unknown-row';
+      const hint = getHint(field);
+      div.innerHTML =
+        '<span class="field-label">' + field + ':</span>' +
+        '<span class="raw-val">' + rawVal + '</span>' +
+        '<span style="color:var(--color-muted)">\u2192</span>' +
+        '<input type="number" class="unk-code-input" min="0" max="99" step="1" placeholder="code" ' +
+          'style="width:70px;padding:5px 8px;border:1px solid var(--color-border);border-radius:5px;text-align:center">' +
+        '<button class="btn btn-sm btn-primary unk-save-btn" style="padding:5px 12px;font-size:12px">Save to map</button>' +
+        '<span style="font-size:11px;color:var(--color-muted);flex-basis:100%;margin-left:100px">' + hint + '</span>';
 
-      const opts = OPTIONS[field];
-      div.innerHTML = `
-        <span class="field-label">${field}:</span>
-        <span class="raw-val">${rawVal}</span>
-        <span style="color:var(--color-muted)">→</span>
-        <select data-field="${field}" data-raw="${rawVal}">
-          <option value="">— assign code —</option>
-          ${opts.map((o,i) => {
-            const val = i + (field==='occupation' ? 3 : field==='income' ? 1 : field==='household' ? 1 : 1);
-            return `<option value="${val}">${o}</option>`;
-          }).join('')}
-        </select>`;
+      const input = div.querySelector('.unk-code-input');
+      const saveBtn = div.querySelector('.unk-save-btn');
 
-      div.querySelector('select').addEventListener('change', function() {
-        if (!this.value) return;
-        AppState.userOverrides[field + ':' + rawVal] = parseInt(this.value);
+      function saveCode() {
+        const code = parseInt(input.value);
+        if (isNaN(code)) { input.focus(); return; }
+        // Permanently add to the map (keyed by lowercase)
+        const mapKey = MAP_KEY_FOR_FIELD[field];
+        MAPS[mapKey][rawVal.toLowerCase()] = code;
+        saveMapsToStorage();
         processAll();
         renderResults();
-      });
+        renderDataPreview();
+        renderMapEditor();
+      }
+
+      saveBtn.addEventListener('click', saveCode);
+      input.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveCode(); });
       body.appendChild(div);
     });
   });
-
   panel.style.display = hasAny ? 'block' : 'none';
 }
 
@@ -991,31 +900,19 @@ function renderUnknownValues() {
    ========================================== */
 function downloadExcel() {
   if (!AppState.results.length) return;
-
-  const COMPUTED_COLS = [
-    'EDU','d9_new','d10_new','occupation','INCOME',
-    'Education_scaled','income_scaled','occupation_scaled',
-    'index','SEC_designation','SEC_code','HS_spss','EDU_spss','INC_spss'
-  ];
-
-  const INTERNAL = new Set(['_rawEdu','_rawEmp','_rawOcc','_rawInc','_rawHH']);
-
+  const COMPUTED_COLS = ['EDU','d9_new','d10_new','occupation','INCOME','Education_scaled','income_scaled',
+                         'occupation_scaled','index','SEC_designation','SEC_code','HS_spss','EDU_spss','INC_spss'];
   const outputRows = AppState.results.map(row => {
     const out = {};
     AppState.headers.forEach(h => { out[h] = row[h]; });
     COMPUTED_COLS.forEach(c => { if (!(c in out)) out[c] = row[c] ?? null; });
     return out;
   });
-
   const ws = XLSX.utils.json_to_sheet(outputRows);
-  const colKeys = Object.keys(outputRows[0] || {});
-  ws['!cols'] = colKeys.map(k => ({ wch: Math.max(k.length + 2, 14) }));
-
+  ws['!cols'] = Object.keys(outputRows[0]||{}).map(k => ({ wch: Math.max(k.length+2, 14) }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'SEC Results');
-
-  const base = AppState.uploadedFilename.replace(/\.(xlsx?|xls)$/i, '');
-  XLSX.writeFile(wb, base + '_SEC.xlsx');
+  XLSX.writeFile(wb, AppState.uploadedFilename.replace(/\.(xlsx?|xls)$/i,'') + '_SEC.xlsx');
 }
 
 /* ==========================================
@@ -1023,16 +920,15 @@ function downloadExcel() {
    ========================================== */
 function saveSettings() {
   try {
-    localStorage.setItem('sec_weights',    JSON.stringify(AppState.weights));
+    localStorage.setItem('sec_weights', JSON.stringify(AppState.weights));
     localStorage.setItem('sec_thresholds', JSON.stringify(AppState.thresholds));
   } catch(_) {}
 }
-
 function loadSettings() {
   try {
     const w = localStorage.getItem('sec_weights');
     const t = localStorage.getItem('sec_thresholds');
-    if (w) AppState.weights    = JSON.parse(w);
+    if (w) AppState.weights = JSON.parse(w);
     if (t) AppState.thresholds = JSON.parse(t);
   } catch(_) {}
 }
@@ -1041,17 +937,11 @@ function loadSettings() {
    RESET
    ========================================== */
 function resetApp() {
-  AppState.rawRows = [];
-  AppState.headers = [];
-  AppState.uploadedFilename = '';
-  AppState.mapping = { household: null, education: null, employment: null, occupation: null, income: null };
-  AppState.encodedRows = [];
-  AppState.results = [];
-  AppState.warnings = [];
-  AppState.unknownValues = {};
-  AppState.userOverrides = {};
+  AppState.rawRows = []; AppState.headers = []; AppState.uploadedFilename = '';
+  AppState.mapping = { household:null, education:null, employment:null, occupation:null, income:null };
+  AppState.encodedRows = []; AppState.results = []; AppState.warnings = [];
+  AppState.unknownValues = {}; AppState.userOverrides = {};
   if (AppState.chartInstance) { AppState.chartInstance.destroy(); AppState.chartInstance = null; }
-
   document.getElementById('file-info').style.display = 'none';
   document.getElementById('file-input').value = '';
   document.getElementById('mapping-tbody').innerHTML = '';
@@ -1059,12 +949,183 @@ function resetApp() {
   document.getElementById('warning-details').style.display = 'none';
   document.getElementById('unknown-panel').style.display = 'none';
   document.getElementById('param-errors').style.display = 'none';
-
-  setPanel('panel-upload',  'active');
-  setPanel('panel-mapping', 'inactive');
-  setPanel('panel-params',  'inactive');
-  setPanel('panel-results', 'inactive');
+  setPanel('panel-upload','active'); setPanel('panel-mapping','inactive');
+  setPanel('panel-params','inactive'); setPanel('panel-results','inactive');
+  hideSidePanel();
+  document.getElementById('toggle-side-btn').classList.remove('visible');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ==========================================
+   SIDE PANEL – Toggle
+   ========================================== */
+function showSidePanel() { document.getElementById('side-panel').classList.add('visible'); }
+function hideSidePanel() { document.getElementById('side-panel').classList.remove('visible'); }
+
+/* ==========================================
+   SIDE PANEL – Data Preview Tab
+   ========================================== */
+function renderDataPreview() {
+  const statsEl = document.getElementById('data-stats');
+  const sumEl = document.getElementById('col-summaries');
+  const totalRows = AppState.rawRows.length;
+
+  if (!totalRows) { statsEl.innerHTML = ''; sumEl.innerHTML = '<p style="color:var(--color-muted);font-size:13px">Upload a file to see data preview.</p>'; return; }
+
+  // Count how many rows have complete data for the 3 main variables
+  let complete = 0, missing = 0;
+  const m = AppState.mapping;
+
+  // If results exist, use those stats
+  if (AppState.results.length) {
+    complete = AppState.results.filter(r => r.SEC_designation != null).length;
+    missing = totalRows - complete;
+  }
+
+  statsEl.innerHTML =
+    '<div class="stat-card"><div class="stat-num">'+totalRows.toLocaleString()+'</div><div class="stat-label">Total Rows</div></div>' +
+    '<div class="stat-card"><div class="stat-num">'+AppState.headers.length+'</div><div class="stat-label">Columns</div></div>' +
+    (AppState.results.length ? '<div class="stat-card"><div class="stat-num" style="color:var(--color-success)">'+complete.toLocaleString()+'</div><div class="stat-label">Complete</div></div>' +
+    '<div class="stat-card"><div class="stat-num" style="color:'+(missing>0?'var(--color-error)':'var(--color-success)')+'">'+missing+'</div><div class="stat-label">Missing/Excluded</div></div>' : '');
+
+  // Column-level summaries
+  sumEl.innerHTML = '';
+  const fieldsToShow = ['education','employment','occupation','income','household'];
+  const mapForField = {
+    education: MAPS.EDU_MAP, employment: MAPS.EMPLOYMENT_MAP,
+    occupation: MAPS.OCCUPATION_MAP, income: MAPS.INCOME_MAP, household: MAPS.HOUSEHOLD_MAP
+  };
+
+  fieldsToShow.forEach(field => {
+    const col = AppState.mapping[field];
+    if (!col) return;
+
+    // Count value frequencies
+    const freq = {};
+    let emptyCount = 0;
+    AppState.rawRows.forEach(row => {
+      const v = String(row[col]||'').trim();
+      if (!v) { emptyCount++; return; }
+      freq[v] = (freq[v]||0) + 1;
+    });
+
+    // Sort by frequency
+    const sorted = Object.entries(freq).sort((a,b) => b[1] - a[1]);
+    const map = mapForField[field];
+    const unmappedCount = sorted.filter(([v]) => !(v.toLowerCase() in map)).reduce((s,[,c]) => s+c, 0);
+    const mappedCount = totalRows - emptyCount - unmappedCount;
+
+    // Badge
+    let badge;
+    if (emptyCount === 0 && unmappedCount === 0) badge = '<span class="badge badge-ok">\u2713 All mapped</span>';
+    else if (unmappedCount > 0) badge = '<span class="badge badge-err">' + unmappedCount + ' unmapped</span>';
+    else if (emptyCount > 0) badge = '<span class="badge badge-warn">' + emptyCount + ' empty</span>';
+
+    let html = '<div class="col-summary"><h4>' + FIELD_META[field].label + ' ' + (badge||'') + '</h4>';
+
+    if (emptyCount > 0) {
+      html += '<div style="font-size:11px;color:var(--color-warning);margin-bottom:4px">' + emptyCount + ' empty cell' + (emptyCount>1?'s':'') + '</div>';
+    }
+
+    html += '<div class="val-dist">';
+    const maxCount = sorted.length ? sorted[0][1] : 1;
+    sorted.forEach(([val, count]) => {
+      const isMapped = val.toLowerCase() in map;
+      const pct = (count/totalRows*100).toFixed(1);
+      const barW = (count/maxCount*100).toFixed(0);
+      const color = isMapped ? 'var(--color-success)' : 'var(--color-error)';
+      html += '<div class="val-dist-row">' +
+        '<span class="val-text ' + (isMapped?'val-mapped':'val-unmapped') + '" title="'+val+'">' + (isMapped?'\u2713':'\u2717') + ' ' + val + '</span>' +
+        '<span class="val-count">' + count + ' (' + pct + '%)</span>' +
+        '<div class="val-bar-wrap"><div class="val-bar" style="width:'+barW+'%;background:'+color+'"></div></div>' +
+        '</div>';
+    });
+    html += '</div></div>';
+    sumEl.innerHTML += html;
+  });
+}
+
+/* ==========================================
+   SIDE PANEL – Encoding Maps Tab
+   ========================================== */
+const MAP_DISPLAY = [
+  { key: 'EDU_MAP', label: 'Education (EDU)', desc: 'd8_en \u2192 1-6' },
+  { key: 'EMPLOYMENT_MAP', label: 'Employment (d9_new)', desc: 'd9_en \u2192 1-2' },
+  { key: 'OCCUPATION_MAP', label: 'Occupation (d10_new)', desc: 'd10_en \u2192 3-5' },
+  { key: 'INCOME_MAP', label: 'Income (INCOME)', desc: 'd11_en \u2192 1-7' },
+  { key: 'HOUSEHOLD_MAP', label: 'Household Size (HS_spss)', desc: 'd7_en \u2192 1-3' },
+  { key: 'EDU_SPSS_MAP', label: 'Education SPSS', desc: 'd8_en \u2192 1-3' },
+  { key: 'INCOME_SPSS_MAP', label: 'Income SPSS', desc: 'd11_en \u2192 2-7' }
+];
+
+function renderMapEditor() {
+  const container = document.getElementById('map-editor');
+  container.innerHTML = '';
+
+  MAP_DISPLAY.forEach(({ key, label, desc }) => {
+    const map = MAPS[key];
+    const section = document.createElement('div');
+    section.className = 'map-section';
+    section.dataset.mapKey = key;
+
+    let html = '<h4>' + label + ' <span style="font-size:11px;font-weight:400;color:var(--color-muted)">' + desc + '</span></h4>';
+    html += '<table class="map-table"><thead><tr><th>Text Value</th><th>Code</th><th></th></tr></thead><tbody>';
+
+    const entries = Object.entries(map);
+    entries.forEach(([text, code]) => {
+      html += '<tr>' +
+        '<td><input type="text" class="map-text" value="' + escHtml(text) + '" data-orig="' + escHtml(text) + '"></td>' +
+        '<td><input type="number" class="map-code" value="' + code + '" min="0" max="99"></td>' +
+        '<td><button class="btn-del" title="Remove">\u00D7</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<button class="btn-add-row" data-map="' + key + '">+ Add Row</button>';
+
+    section.innerHTML = html;
+    container.appendChild(section);
+
+    // Wire up delete buttons
+    section.querySelectorAll('.btn-del').forEach(btn => {
+      btn.addEventListener('click', function() { this.closest('tr').remove(); });
+    });
+
+    // Wire up add button
+    section.querySelector('.btn-add-row').addEventListener('click', function() {
+      const tbody = this.previousElementSibling.querySelector('tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td><input type="text" class="map-text" value="" placeholder="new value"></td>' +
+        '<td><input type="number" class="map-code" value="" min="0" max="99" placeholder="#"></td>' +
+        '<td><button class="btn-del" title="Remove">\u00D7</button></td>';
+      tr.querySelector('.btn-del').addEventListener('click', function() { this.closest('tr').remove(); });
+      tbody.appendChild(tr);
+      tr.querySelector('.map-text').focus();
+    });
+  });
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function applyMapEdits() {
+  const container = document.getElementById('map-editor');
+  MAP_DISPLAY.forEach(({ key }) => {
+    const section = container.querySelector('[data-map-key="'+key+'"]');
+    if (!section) return;
+    const newMap = {};
+    section.querySelectorAll('tbody tr').forEach(tr => {
+      const text = tr.querySelector('.map-text').value.trim().toLowerCase();
+      const code = parseInt(tr.querySelector('.map-code').value);
+      if (text && !isNaN(code)) newMap[text] = code;
+    });
+    MAPS[key] = newMap;
+  });
+  saveMapsToStorage();
+
+  // Re-process if we have data
+  if (AppState.rawRows.length && AppState.results.length) {
+    processAll(); renderResults(); renderDataPreview();
+  } else if (AppState.rawRows.length) {
+    renderDataPreview();
+  }
 }
 
 /* ==========================================
@@ -1072,78 +1133,82 @@ function resetApp() {
    ========================================== */
 (function init() {
   loadSettings();
+  loadMapsFromStorage();
 
-  // Apply loaded settings to inputs
   document.getElementById('w-edu').value = AppState.weights.education;
   document.getElementById('w-inc').value = AppState.weights.income;
   document.getElementById('w-occ').value = AppState.weights.occupation;
-  document.getElementById('t-de').value  = AppState.thresholds.de;
-  document.getElementById('t-c2').value  = AppState.thresholds.c2;
-  document.getElementById('t-c1').value  = AppState.thresholds.c1;
+  document.getElementById('t-de').value = AppState.thresholds.de;
+  document.getElementById('t-c2').value = AppState.thresholds.c2;
+  document.getElementById('t-c1').value = AppState.thresholds.c1;
   updateWeightBar(AppState.weights);
   updateThresholdHints(AppState.thresholds);
 
   // File upload
-  const dropZone  = document.getElementById('drop-zone');
+  const dropZone = document.getElementById('drop-zone');
   const fileInput = document.getElementById('file-input');
-
   dropZone.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', e => handleFile(e.target.files[0]));
-  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('drag-over'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    handleFile(e.dataTransfer.files[0]);
-  });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); handleFile(e.dataTransfer.files[0]); });
 
   // Confirm mapping
   document.getElementById('btn-confirm-mapping').addEventListener('click', () => {
-    setPanel('panel-mapping', 'complete');
-    setPanel('panel-params', 'active');
-    // pre-encode so live updates are fast
+    setPanel('panel-mapping','complete'); setPanel('panel-params','active');
     AppState.encodedRows = AppState.rawRows.map(row => ({ ...row, ...encodeRow(row) }));
+    renderDataPreview();
     document.getElementById('panel-params').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
   // Weight inputs
   ['edu','inc','occ'].forEach(id => {
-    const fieldMap = { edu: 'education', inc: 'income', occ: 'occupation' };
-    document.getElementById('w-' + id).addEventListener('input', () => onWeightInput(fieldMap[id]));
+    const fieldMap = { edu:'education', inc:'income', occ:'occupation' };
+    document.getElementById('w-'+id).addEventListener('input', () => onWeightInput(fieldMap[id]));
   });
+  ['t-de','t-c2','t-c1'].forEach(id => { document.getElementById(id).addEventListener('input', onThresholdInput); });
 
-  // Threshold inputs
-  ['t-de','t-c2','t-c1'].forEach(id => {
-    document.getElementById(id).addEventListener('input', onThresholdInput);
-  });
-
-  // Calculate button
+  // Calculate
   document.getElementById('btn-calculate').addEventListener('click', () => {
-    AppState.weights    = readWeightInputs();
-    AppState.thresholds = readThresholdInputs();
-
-    const wErrors = validateWeights(AppState.weights);
-    const tErrors = validateThresholds(AppState.thresholds);
-    const all = [...wErrors, ...tErrors];
+    AppState.weights = readWeightInputs(); AppState.thresholds = readThresholdInputs();
+    const all = [...validateWeights(AppState.weights), ...validateThresholds(AppState.thresholds)];
     const errEl = document.getElementById('param-errors');
-
-    if (all.length) {
-      errEl.style.display = 'block';
-      errEl.innerHTML = '<ul>' + all.map(e => `<li>${e}</li>`).join('') + '</ul>';
-      return;
-    }
+    if (all.length) { errEl.style.display = 'block'; errEl.innerHTML = '<ul>'+all.map(e=>'<li>'+e+'</li>').join('')+'</ul>'; return; }
     errEl.style.display = 'none';
-    processAll();
-    renderResults();
-    setPanel('panel-params', 'complete');
-    saveSettings();
+    processAll(); renderResults(); setPanel('panel-params','complete'); saveSettings(); renderDataPreview();
   });
 
-  // Download
+  // Download & Reset
   document.getElementById('btn-download').addEventListener('click', downloadExcel);
-
-  // Reset
   document.getElementById('reset-btn').addEventListener('click', resetApp);
+
+  // Side panel tabs
+  document.querySelectorAll('.side-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.side-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.side-tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'tab-maps') renderMapEditor();
+    });
+  });
+
+  // Side panel toggle
+  document.getElementById('toggle-side-btn').addEventListener('click', () => {
+    const sp = document.getElementById('side-panel');
+    if (sp.classList.contains('visible')) hideSidePanel(); else { showSidePanel(); renderDataPreview(); }
+  });
+  document.getElementById('side-close-btn').addEventListener('click', hideSidePanel);
+
+  // Map editor actions
+  document.getElementById('btn-apply-maps').addEventListener('click', applyMapEdits);
+  document.getElementById('btn-reset-maps').addEventListener('click', () => {
+    resetMaps(); saveMapsToStorage(); renderMapEditor();
+    if (AppState.rawRows.length && AppState.results.length) { processAll(); renderResults(); renderDataPreview(); }
+  });
+
+  // Render initial map editor
+  renderMapEditor();
 })();
 </script>
 </body>
